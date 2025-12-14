@@ -1,0 +1,842 @@
+<style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+      padding: 0;
+    }
+    .dashboard-root {
+      height: 100vh;
+      display: flex;
+      background: #f3f4f6;
+    }
+    .sidebar {
+      width: 250px;
+      background: #fff;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+      transition: width 0.3s ease, left 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      z-index: 1002;
+      position: fixed;
+      left: -260px;
+      top: 0;
+      height: 100vh;
+      visibility: hidden;
+      opacity: 0;
+    }
+    .sidebar.active {
+      left: 0;
+      visibility: visible;
+      opacity: 1;
+      transition: left 0.3s ease, opacity 0.3s ease;
+    }
+    .sidebar.collapsed {
+      width: 70px;
+    }
+    .sidebar-header {
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid #e5e7eb;
+      font-weight: bold;
+      font-size: 1.2em;
+      letter-spacing: 1px;
+    }
+    .sidebar-menu {
+      padding: 10px;
+    }
+    .sidebar-menu a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      color: #111827;
+      text-decoration: none;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      font-size: 1em;
+      transition: background 0.2s;
+    }
+    .sidebar-menu a:hover {
+      background: #f3f4f6;
+    }
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      margin-left: 0;
+      transition: margin-left 0.3s ease;
+    }
+    @media (min-width: 701px) {
+      .sidebar.active ~ .main {
+        margin-left: 250px;
+      }
+    }
+    .topbar {
+      height: 60px;
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 1;
+    }
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    .icon-btn {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+    .icon-btn:hover {
+      background: #f3f4f6;
+    }
+    .logout-btn {
+      padding: 6px 12px;
+      border: 1px solid #d1d5db;
+      background: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1em;
+      transition: background 0.2s;
+    }
+    .logout-btn:hover {
+      background: #f3f4f6;
+    }
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      min-width: 0;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px #0001;
+      padding: 30px;
+    }
+    .notification-bell {
+      position: relative;
+      font-size: 2em;
+      cursor: pointer;
+      z-index: 1000;
+      background: none;
+      border: none;
+      margin-right: 8px;
+    }
+    .notification-badge {
+      position: absolute;
+      top: -6px;
+      right: -8px;
+      background: #e53935;
+      color: #fff;
+      border-radius: 50%;
+      padding: 2px 7px;
+      font-size: 0.7em;
+      font-weight: bold;
+      display: none;
+    }
+    .notification-dropdown {
+      display: none;
+      position: absolute;
+      top: 40px;
+      right: 0;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px #0002;
+      min-width: 260px;
+      max-width: 350px;
+      max-height: 350px;
+      overflow-y: auto;
+      z-index: 1001;
+    }
+    .notification-dropdown.active {
+      display: block;
+    }
+    .notification-dropdown h4 {
+      margin: 0;
+      padding: 10px 16px;
+      border-bottom: 1px solid #eee;
+      font-size: 1em;
+      background: #f8fafc;
+    }
+    .notification-dropdown ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .notification-dropdown li {
+      padding: 10px 16px;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 0.98em;
+      color: #333;
+    }
+    .notification-dropdown li:last-child {
+      border-bottom: none;
+    }
+    .notification-dropdown .empty {
+      color: #888;
+      text-align: center;
+      padding: 18px 0;
+    }
+    @media (max-width: 1200px) {
+      .main-content { padding: 10px; }
+      .chart-container {
+        grid-template-columns: 1fr;
+        grid-gap: 18px;
+      }
+    }
+    @media (max-width: 900px) {
+      .sidebar { width: 60px; }
+      .sidebar.collapsed { width: 40px; }
+      .main-content { padding: 6px; }
+      .chart-container {
+        grid-template-columns: 1fr;
+        grid-gap: 12px;
+      }
+      .topbar { flex-direction: column; height: auto; padding: 8px; }
+      .topbar-actions { margin-top: 8px; }
+    }
+    @media (max-width: 700px) {
+      .dashboard-root { flex-direction: column; }
+      .sidebar {
+        width: 80vw;
+        max-width: 320px;
+        height: 100vh;
+        flex-direction: column;
+        position: fixed;
+        left: -85vw;
+        top: 0;
+        box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+        z-index: 1002;
+      }
+      .sidebar.active {
+        left: 0;
+      }
+      .sidebar-header { display: flex; }
+      .sidebar-menu { display: flex; flex-direction: column; padding: 10px; width: 100%; }
+      .sidebar-menu a { flex: none; justify-content: flex-start; margin-bottom: 6px; padding: 12px; font-size: 1em; }
+      .main { width: 100vw; margin-left: 0; }
+      .main-content { padding: 4px; }
+      .chart-container > div { max-width: 100%; }
+      .topbar { flex-direction: column; height: auto; padding: 6px; }
+      .topbar-actions { margin-top: 8px; }
+    }
+    @media (max-width: 500px) {
+      .main-content { padding: 2px; }
+      .chart-container > div { padding: 6px 2px 2px 2px; }
+      .chart-container h3 { font-size: 1em; }
+      .sidebar-menu a { font-size: 0.85em; }
+      .notification-bell { font-size: 1.3em; }
+      .logout-btn { font-size: 0.9em; padding: 4px 8px; }
+    }
+  </style>
+  <script>
+  // Notification logic
+  let lastAlertState = { ph: '', water: '', temp: '', hum: '' };
+  let alertMessages = [];
+  function addAlert(msg) {
+    alertMessages.unshift({ msg, time: new Date() });
+    updateNotificationBell();
+  }
+  function updateNotificationBell() {
+    const badge = document.getElementById('notificationBadge');
+    badge.textContent = alertMessages.length;
+    badge.style.display = alertMessages.length > 0 ? '' : 'none';
+    const list = document.getElementById('notificationList');
+    list.innerHTML = '';
+    if (alertMessages.length === 0) {
+      list.innerHTML = '<li class="empty">No alerts yet.</li>';
+    } else {
+      alertMessages.forEach(a => {
+        const li = document.createElement('li');
+        li.textContent = `[${a.time.toLocaleTimeString()}] ${a.msg}`;
+        list.appendChild(li);
+      });
+    }
+  }
+
+  function markNotificationsRead() {
+    // Mark all as read: clear badge
+    const badge = document.getElementById('notificationBadge');
+    badge.style.display = 'none';
+    // Optionally clear alertMessages if you want to clear the list after reading:
+    // alertMessages = [];
+    // updateNotificationBell();
+  }
+  function notify(msg) {
+    addAlert(msg);
+    if (window.Notification && Notification.permission === 'granted') {
+      new Notification(msg);
+    } else if (window.Notification && Notification.permission !== 'denied') {
+      Notification.requestPermission().then(p => { if (p === 'granted') new Notification(msg); });
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    const bell = document.getElementById('notificationBell');
+    const dropdown = document.getElementById('notificationDropdown');
+    bell.addEventListener('click', function() {
+      dropdown.classList.toggle('active');
+      if (dropdown.classList.contains('active')) {
+        updateNotificationBell();
+        markNotificationsRead();
+      }
+    });
+    document.addEventListener('click', function(e) {
+      if (!bell.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.classList.remove('active');
+      }
+    });
+  });
+  </script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+
+  <title>ESP32 Sensor Dashboard</title>
+  <!-- Removed corrupted updateChart function -->
+  <script src="https://cdn.jsdelivr.net/npm/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/raphael@2.3.0/raphael.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/justgage@1.3.5/justgage.min.js"></script>
+  <!-- SheetJS library for Excel export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6fa; margin: 0; padding: 0; }
+    .container { max-width: 900px; margin: 30px auto; background: #fff; border-radius: 10px; box-shadow: 0 2px 8px #0001; padding: 30px; }
+    h1 { text-align: center; }
+    .cards { display: flex; flex-wrap: wrap; justify-content: space-around; margin-bottom: 30px; gap: 16px; }
+    .card { background: #e3eafc; border-radius: 8px; padding: 20px 30px; text-align: center; min-width: 120px; flex: 1 1 150px; box-shadow: 0 1px 4px #0001; margin: 0 4px; }
+    .card span { display: block; font-size: 2em; font-weight: bold; margin-top: 10px; }
+    .chart-container {
+      margin: 30px 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-gap: 24px;
+    }
+    .chart-container > div {
+      min-width: 0;
+      max-width: 100%;
+      background: #f8fafc;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px #0001;
+      padding: 16px 8px 8px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    @media (max-width: 900px) {
+      .chart-container {
+        grid-template-columns: 1fr;
+        grid-gap: 18px;
+      }
+    }
+    @media (max-width: 700px) {
+      .container { padding: 10px; }
+      .cards { flex-direction: column; align-items: stretch; gap: 10px; }
+      .card { min-width: unset; padding: 16px 10px; }
+      .chart-container > div { max-width: 100%; }
+    }
+    @media (max-width: 400px) {
+      h1 { font-size: 1.2em; }
+      .card span { font-size: 1.3em; }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-root">
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header" id="sidebarHeader">Greenhouse Real-Time Sensor Dashboard</div>
+      <div class="sidebar-menu">
+        <a href="#" id="menuHome">🏠 <span class="menu-label">Home</span></a>
+        <a href="#" id="menuChangeNumber">📱 <span class="menu-label">Change Number</span></a>
+        <a href="#" id="menuExport" onclick="exportToExcel()">&#128190; <span class="menu-label">Export to Excel</span></a>
+      </div>
+    </div>
+    <!-- Main -->
+    <div class="main" id="mainContent">
+      <div class="topbar">
+        <button class="icon-btn" id="sidebarToggle" title="Toggle sidebar">☰</button>
+        <div class="topbar-actions">
+          <button class="notification-bell icon-btn" id="notificationBell" title="Show alerts">
+            <span id="bellIcon">🔔</span>
+            <span class="notification-badge" id="notificationBadge">0</span>
+          </button>
+          <button class="logout-btn" id="logoutBtn">Logout</button>
+        </div>
+        <div class="notification-dropdown" id="notificationDropdown">
+          <h4>Alerts</h4>
+          <ul id="notificationList">
+            <li class="empty">No alerts yet.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="main-content">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 16px;">
+          <div class="notification-area" style="display:flex; align-items:center;">
+            <span id="notification" style="margin-right:8px;"></span>
+          </div>
+        </div>
+        <div class="chart-container">
+          <div>
+            <button id="mistingToggleBtn" style="display:block;margin:0 auto 10px auto;padding:8px 18px;font-size:1em;background:#e53935;color:#fff;border:none;border-radius:6px;cursor:pointer;box-shadow:0 1px 4px #0002;" disabled>Misting: OFF</button>
+            <h3>Water Level</h3>
+            <span id="waterLevel2" style="font-size:1.5em;font-weight:bold;">--</span>
+            <div id="gauge-water" style="width:140px;height:100px;margin-bottom:10px;"></div>
+            <canvas id="waterLevelChart"></canvas>
+          </div>
+          <div>
+            <h3>Temperature</h3>
+            <span id="temperature2" style="font-size:1.5em;font-weight:bold;">--</span>
+            <div id="gauge-temp" style="width:140px;height:100px;margin-bottom:10px;"></div>
+            <canvas id="temperatureChart"></canvas>
+          </div>
+          <div>
+            <h3>Humidity</h3>
+            <span id="humidity2" style="font-size:1.5em;font-weight:bold;">--</span>
+            <div id="gauge-hum" style="width:140px;height:100px;margin-bottom:10px;"></div>
+            <canvas id="humidityChart"></canvas>
+          </div>
+          <div>
+            <h3>pH</h3>
+            <span id="ph2" style="font-size:1.5em;font-weight:bold;">--</span>
+            <div id="gauge-ph" style="width:140px;height:100px;margin-bottom:10px;"></div>
+            <canvas id="phChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+  // Sidebar show/hide logic
+  const sidebar = document.getElementById('sidebar');
+  const sidebarHeader = document.getElementById('sidebarHeader');
+  const sidebarToggle = document.getElementById('sidebarToggle');
+  const mainContent = document.getElementById('mainContent');
+  const menuLabels = document.querySelectorAll('.menu-label');
+  let sidebarVisible = false;
+  function setSidebarVisible(visible) {
+    sidebarVisible = visible;
+    if (visible) {
+      sidebar.classList.add('active');
+      // For desktop, push main content
+      if (window.innerWidth > 700) {
+        mainContent.style.marginLeft = '250px';
+      }
+    } else {
+      sidebar.classList.remove('active');
+      mainContent.style.marginLeft = '0';
+    }
+    // Always set sidebar header to full title
+    sidebarHeader.textContent = 'Greenhouse Real-Time Sensor Dashboard';
+  }
+  // Hide sidebar by default
+  setSidebarVisible(false);
+  sidebarToggle.addEventListener('click', function(e) {
+    e.stopPropagation();
+    setSidebarVisible(!sidebarVisible);
+  });
+  // Hide sidebar when clicking outside (on main area)
+  document.addEventListener('click', function(e) {
+    if (sidebarVisible && !sidebar.contains(e.target) && !sidebarToggle.contains(e.target)) {
+      setSidebarVisible(false);
+    }
+  });
+  // Hide sidebar on resize if needed
+  window.addEventListener('resize', function() {
+    if (window.innerWidth > 700 && sidebarVisible) {
+      mainContent.style.marginLeft = '250px';
+    } else {
+      mainContent.style.marginLeft = '0';
+    }
+  });
+
+  // Notification dropdown positioning (relative to bell)
+  const notificationBell = document.getElementById('notificationBell');
+  const notificationDropdown = document.getElementById('notificationDropdown');
+  notificationBell.addEventListener('click', function(e) {
+    e.stopPropagation();
+    notificationDropdown.classList.toggle('active');
+    if (notificationDropdown.classList.contains('active')) {
+      updateNotificationBell();
+      markNotificationsRead();
+      // Position dropdown below bell
+      const rect = notificationBell.getBoundingClientRect();
+      notificationDropdown.style.top = (rect.bottom + 8) + 'px';
+      notificationDropdown.style.right = (window.innerWidth - rect.right) + 'px';
+    }
+  });
+  document.addEventListener('click', function(e) {
+    if (!notificationBell.contains(e.target) && !notificationDropdown.contains(e.target)) {
+      notificationDropdown.classList.remove('active');
+    }
+  });
+    function logout() {
+      // Optionally clear session/local storage here if needed
+      window.location.href = 'login.html';
+    }
+    document.getElementById('logoutBtn').addEventListener('click', function(e) {
+      e.preventDefault();
+      logout();
+    });
+  // Menu navigation
+  document.getElementById('menuHome').addEventListener('click', function(e) {
+    e.preventDefault();
+    window.location.href = 'index.html';
+  });
+  document.getElementById('menuChangeNumber').addEventListener('click', function(e) {
+    e.preventDefault();
+    window.location.href = 'change-number.html';
+  });
+    // MQTT Setup
+    const broker = 'wss://mqtt.flespi.io:443'; // flespi WebSocket broker
+    const topic = 'ttgo/sensors';
+    const token = 'Y0LUpdI1XCaPuYx4yqxetZ3767TbxsutQ4RgB6xBWhFKhVdL52g5jPvkzlCi6wUV';
+    // Connect to flespi MQTT using only the token
+    const client = mqtt.connect(broker, {
+      username: '',
+      password: token
+    });
+
+    // Chart.js Setup for each sensor
+    function createChart(ctx, label, color) {
+      const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: Array(20).fill(''),
+          datasets: [{ 
+            label, 
+            data: Array(20).fill(0),
+            borderColor: color, 
+            fill: false,
+            tension: 0.3,
+            pointRadius: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          animation: false,
+          scales: { 
+            x: { display: false },
+            y: { beginAtZero: true }
+          }
+        }
+      });
+      return chart;
+    }
+    const waterLevelChart = createChart(document.getElementById('waterLevelChart').getContext('2d'), 'Water Level (cm)', '#1976d2');
+    const temperatureChart = createChart(document.getElementById('temperatureChart').getContext('2d'), 'Temperature (°C)', '#e53935');
+    const humidityChart = createChart(document.getElementById('humidityChart').getContext('2d'), 'Humidity (%)', '#43a047');
+    const phChart = createChart(document.getElementById('phChart').getContext('2d'), 'pH', '#fbc02d');
+
+    // Gauges setup
+    let gaugeWater, gaugeTemp, gaugeHum, gaugePh;
+    window.onload = function() {
+      gaugeWater = new JustGage({
+        id: "gauge-water",
+        value: 0,
+        min: 0,
+        max: 30,
+        title: "cm",
+        levelColors: ["#1976d2"],
+        gaugeWidthScale: 0.6,
+        label: ""
+      });
+      gaugeTemp = new JustGage({
+        id: "gauge-temp",
+        value: 0,
+        min: 0,
+        max: 50,
+        title: "°C",
+        levelColors: ["#e53935"],
+        gaugeWidthScale: 0.6,
+        label: ""
+      });
+      gaugeHum = new JustGage({
+        id: "gauge-hum",
+        value: 0,
+        min: 0,
+        max: 100,
+        title: "%",
+        levelColors: ["#43a047"],
+        gaugeWidthScale: 0.6,
+        label: ""
+      });
+      gaugePh = new JustGage({
+        id: "gauge-ph",
+        value: 0,
+        min: 0,
+        max: 14,
+        title: "pH",
+        levelColors: ["#fbc02d"],
+        gaugeWidthScale: 0.6,
+        label: ""
+      });
+
+      // MutationObserver to force two decimals in gauge value
+      function forceGaugeDecimals(gaugeId, getValue) {
+        const el = document.querySelector(`#${gaugeId} .justgage-value`);
+        if (!el) return;
+        const observer = new MutationObserver(() => {
+          const val = getValue();
+          if (typeof val === 'number') el.textContent = val.toFixed(2);
+        });
+        observer.observe(el, { childList: true });
+      }
+      forceGaugeDecimals('gauge-water', () => gaugeWater && gaugeWater.txtValue ? Number(gaugeWater.txtValue) : 0);
+      forceGaugeDecimals('gauge-temp', () => gaugeTemp && gaugeTemp.txtValue ? Number(gaugeTemp.txtValue) : 0);
+      forceGaugeDecimals('gauge-hum', () => gaugeHum && gaugeHum.txtValue ? Number(gaugeHum.txtValue) : 0);
+      forceGaugeDecimals('gauge-ph', () => gaugePh && gaugePh.txtValue ? Number(gaugePh.txtValue) : 0);
+    }
+
+    // Update UI
+    function updateCards(data) {
+      // Format to show exact value (up to 2 decimals if needed)
+      function formatValue(val) {
+        return (typeof val === 'number' && !Number.isInteger(val)) ? val.toFixed(2) : val;
+      }
+      document.getElementById('waterLevel2').textContent = formatValue(data.distance);
+      document.getElementById('temperature2').textContent = formatValue(data.temperature);
+      document.getElementById('humidity2').textContent = formatValue(data.humidity);
+      document.getElementById('ph2').textContent = formatValue(data.ph);
+      // Update gauges and force value display to two decimals
+      if (gaugeWater && data.distance !== undefined) {
+        gaugeWater.refresh(data.distance);
+        setTimeout(() => {
+          const el = document.querySelector('#gauge-water .justgage-value');
+          if (el) el.textContent = Number(data.distance).toFixed(2);
+        }, 50);
+      }
+      if (gaugeTemp && data.temperature !== undefined) {
+        gaugeTemp.refresh(data.temperature);
+        setTimeout(() => {
+          const el = document.querySelector('#gauge-temp .justgage-value');
+          if (el) el.textContent = Number(data.temperature).toFixed(2);
+        }, 50);
+      }
+      if (gaugeHum && data.humidity !== undefined) {
+        gaugeHum.refresh(data.humidity);
+        setTimeout(() => {
+          const el = document.querySelector('#gauge-hum .justgage-value');
+          if (el) el.textContent = Number(data.humidity).toFixed(2);
+        }, 50);
+      }
+      if (gaugePh && data.ph !== undefined) {
+        gaugePh.refresh(data.ph);
+        setTimeout(() => {
+          const el = document.querySelector('#gauge-ph .justgage-value');
+          if (el) el.textContent = Number(data.ph).toFixed(2);
+        }, 50);
+      }
+
+      // --- Notification logic (mirrors firmware thresholds and state) ---
+      // pH
+      if (typeof data.ph === 'number' && data.ph > 0.1 && data.ph < 13.9) {
+        if (data.ph < 5.5) {
+          if (lastAlertState.ph !== 'low') { notify('ALERT: pH below optimal range.'); lastAlertState.ph = 'low'; }
+        } else if (data.ph > 6.5) {
+          if (lastAlertState.ph !== 'high') { notify('ALERT: pH above optimal range.'); lastAlertState.ph = 'high'; }
+        } else {
+          if (lastAlertState.ph !== 'normal') { notify('NOTICE: pH back to optimal.'); lastAlertState.ph = 'normal'; }
+        }
+      }
+      // Water level
+      if (typeof data.distance === 'number') {
+        if (data.distance <= 10) {
+          if (lastAlertState.water !== 'critical') { notify('ALERT: Critical water level!'); lastAlertState.water = 'critical'; }
+        } else if (data.distance > 10 && data.distance <= 20) {
+          if (lastAlertState.water !== 'low') { notify('WARNING: Low water level.'); lastAlertState.water = 'low'; }
+        } else if (data.distance >= 28) {
+          if (lastAlertState.water !== 'normal') { notify('NOTICE: Water level back to optimal.'); lastAlertState.water = 'normal'; }
+        }
+      }
+      // Temperature
+      if (typeof data.temperature === 'number') {
+        if (data.temperature >= 26.0) {
+          if (lastAlertState.temp !== 'high') { notify('ALERT: Temperature is above 25C. Fan ON.'); lastAlertState.temp = 'high'; }
+        } else if (data.temperature <= 24.0 && lastAlertState.temp === 'high') {
+          notify('NOTICE: Temperature back to optimal range.'); lastAlertState.temp = 'normal';
+        }
+      }
+      // Humidity
+      if (typeof data.humidity === 'number') {
+        if (data.humidity < 60.0) {
+          if (lastAlertState.hum !== 'low') {
+            notify('WARNING: Humidity below 60%. Misting activated.');
+            lastAlertState.hum = 'low';
+          }
+        } else if (data.humidity >= 65.0 && data.humidity <= 75.0) {
+          if (lastAlertState.hum === 'low') {
+            notify('NOTICE: Humidity back to normal.');
+            lastAlertState.hum = 'normal';
+          } else if (lastAlertState.hum === 'high') {
+            notify('NOTICE: Humidity back to normal.');
+            lastAlertState.hum = 'normal';
+          }
+        } else if (data.humidity > 75.0) {
+          if (lastAlertState.hum !== 'high') {
+            notify('WARNING: Humidity above 75%. Exhaust fan activated.');
+            lastAlertState.hum = 'high';
+          }
+        }
+      }      
+    }
+
+    // Helper to update a chart
+    function updateChart(chart, value) {
+      // Use last value if new value is invalid
+      let v = (typeof value === 'number' && !isNaN(value)) ? value : chart.data.datasets[0].data[chart.data.datasets[0].data.length - 1];
+      const now = new Date().toLocaleTimeString();
+      // Shift array and add new value at end
+      chart.data.labels.shift();
+      chart.data.labels.push(now);
+      chart.data.datasets[0].data.shift();
+      chart.data.datasets[0].data.push(v);
+      chart.update('none'); // Update without animation for better performance
+    }
+
+    // MQTT Events
+    client.on('connect', () => {
+      client.subscribe(topic);
+      console.log('Connected to MQTT broker');
+    });
+
+    let lastData = { distance: 0, temperature: 0, humidity: 0, ph: 0 };
+    // --- Misting Toggle Button Logic ---
+    const mistingToggleBtn = document.getElementById('mistingToggleBtn');
+    // MQTT topic for misting control (customize as needed)
+    const mistingTopic = 'ttgo/misting';
+    let mistingState = false; // false = OFF, true = ON
+    mistingToggleBtn.addEventListener('click', function() {
+      mistingState = !mistingState;
+      if (mistingState) {
+        client.publish(mistingTopic, JSON.stringify({ action: 'start' }));
+        mistingToggleBtn.textContent = 'Misting: ON';
+        mistingToggleBtn.style.background = '#388e3c'; // Green for ON
+      } else {
+        client.publish(mistingTopic, JSON.stringify({ action: 'stop' }));
+        mistingToggleBtn.textContent = 'Misting: OFF';
+        mistingToggleBtn.style.background = '#e53935'; // Red for OFF
+      }
+    });
+
+    client.on('message', (topic, message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        // Update lastData with new valid values
+        if (typeof data.distance === 'number' && !isNaN(data.distance)) lastData.distance = data.distance;
+        if (typeof data.temperature === 'number' && !isNaN(data.temperature)) lastData.temperature = data.temperature;
+        if (typeof data.humidity === 'number' && !isNaN(data.humidity)) lastData.humidity = data.humidity;
+        if (typeof data.ph === 'number' && !isNaN(data.ph)) lastData.ph = data.ph;
+
+        // Store each reading for export
+        window.sensorReadings.push({
+          time: new Date().toLocaleString(),
+          distance: lastData.distance,
+          temperature: lastData.temperature,
+          humidity: lastData.humidity,
+          ph: lastData.ph
+        });
+        // Optional: Limit to last 500 readings to avoid memory issues
+        if (window.sensorReadings.length > 500) window.sensorReadings.shift();
+
+        // Update UI with latest values
+        updateCards(lastData);
+        // Enable/disable Misting Toggle button based on water level
+        if (typeof lastData.distance === 'number' && lastData.distance < 10) {
+          mistingToggleBtn.disabled = false;
+        } else {
+          mistingToggleBtn.disabled = true;
+          // Optionally, force misting OFF if water level rises above threshold
+          if (mistingState) {
+            mistingState = false;
+            mistingToggleBtn.textContent = 'Misting: OFF';
+            mistingToggleBtn.style.background = '#e53935'; // Red for OFF
+          }
+        }
+      } catch (e) { 
+        console.error('Error parsing message:', e);
+      }
+    });
+
+    // Update charts every second with latest values
+    setInterval(() => {
+      updateChart(waterLevelChart, lastData.distance);
+      updateChart(temperatureChart, lastData.temperature);
+      updateChart(humidityChart, lastData.humidity);
+      updateChart(phChart, lastData.ph);
+    }, 1000);
+  </script>
+</body>
+<script>
+// Ensure global sensorReadings array exists
+window.sensorReadings = window.sensorReadings || [];
+
+// Example: When new sensor data arrives, push it to window.sensorReadings
+// You should add this push wherever you handle new sensor data, e.g., in your MQTT message handler or AJAX response
+// Example usage:
+// window.sensorReadings.push({ time: Date.now(), temp: 25, humidity: 60 });
+
+// Export sensor readings to Excel file
+function exportToExcel() {
+  let sensorReadings = window.sensorReadings;
+  if (!Array.isArray(sensorReadings) || !sensorReadings.length) {
+    alert('No sensor data to export!');
+    return;
+  }
+  const ws = XLSX.utils.json_to_sheet(sensorReadings);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Sensor Readings");
+  // Add only date to filename to avoid duplication
+  const now = new Date();
+  const pad = n => n.toString().padStart(2, '0');
+  const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+  XLSX.writeFile(wb, `sensor_readings_${dateStr}.xlsx`);
+}
+</script>
+<script>
+// Redirect to login if not logged in
+if (localStorage.getItem('isLoggedIn') !== 'true') {
+  window.location.href = 'login.html';
+}
+// Prevent back navigation after logout
+window.addEventListener('pageshow', function(event) {
+  if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+    if (localStorage.getItem('isLoggedIn') !== 'true') {
+      window.location.href = 'login.html';
+    }
+  }
+});
+// Logout function
+function logout() {
+  localStorage.removeItem('isLoggedIn');
+  localStorage.removeItem('username');
+  window.location.replace('login.html');
+}
+// Attach logout to button
+window.addEventListener('DOMContentLoaded', function() {
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', logout);
+  }
+});
+</script>
+</html>

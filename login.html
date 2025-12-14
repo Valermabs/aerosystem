@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Greenhouse Real-Time Sensor Dashboard</title>
+  <style>
+    body {
+      background: #f3f4f6;
+      font-family: Arial, Helvetica, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .login-container {
+      background: #fff;
+      padding: 32px 28px 24px 28px;
+      border-radius: 12px;
+      box-shadow: 0 2px 16px #0002;
+      width: 100%;
+      max-width: 350px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .login-title {
+      font-size: 1.3em;
+      font-weight: bold;
+      margin-bottom: 18px;
+      color: #1976d2;
+      text-align: center;
+    }
+    .login-form {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .login-form label {
+      font-size: 1em;
+      margin-bottom: 4px;
+      color: #333;
+    }
+    .login-form input[type="text"],
+    .login-form input[type="password"] {
+      padding: 8px 10px;
+      border: 1px solid #cfd8dc;
+      border-radius: 6px;
+      font-size: 1em;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .login-form input[type="text"]:focus,
+    .login-form input[type="password"]:focus {
+      border: 1.5px solid #1976d2;
+    }
+    .login-form button {
+      background: #1976d2;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 0;
+      font-size: 1.1em;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.2s;
+    }
+    .login-form button:hover {
+      background: #1251a3;
+    }
+    .login-error {
+      color: #e53935;
+      font-size: 0.98em;
+      margin-top: 4px;
+      text-align: center;
+      min-height: 20px;
+    }
+    @media (max-width: 500px) {
+      .login-container { padding: 18px 6px 14px 6px; }
+      .login-title { font-size: 1.1em; }
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-title">Greenhouse Real-Time Sensor Dashboard</div>
+    <form class="login-form" id="loginForm" autocomplete="off">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" required autofocus>
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required>
+      <button type="submit">Login</button>
+      <div class="login-error" id="loginError"></div>
+    </form>
+  </div>
+  <script type="module">
+    // Redirect to index.html if already logged in
+    if (localStorage.getItem('isLoggedIn') === 'true') {
+      window.location.href = 'index.html';
+    }
+
+    // Firebase SDK imports
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+    // Your Firebase config (replace with your actual config if needed)
+    const firebaseConfig = {
+      apiKey: "AIzaSyBdeXfuNl-VU5cDRGLy7TmU4uUZXvvZ8to",
+      authDomain: "aeroponics-f8f5d.firebaseapp.com",
+      projectId: "aeroponics-f8f5d",
+      storageBucket: "aeroponics-f8f5d.appspot.com",
+      messagingSenderId: "248978460736",
+      appId: "1:248978460736:web:594465660cff03ccda0fa5",
+      measurementId: "G-KV8VEL2ETG"
+    };
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const user = document.getElementById('username').value.trim();
+      const pass = document.getElementById('password').value;
+      const errorDiv = document.getElementById('loginError');
+      errorDiv.textContent = '';
+      if (!user || !pass) {
+        errorDiv.textContent = 'Please enter username and password.';
+        return;
+      }
+      try {
+        // Firestore: users collection, doc id = username
+        const userDoc = await getDoc(doc(db, 'users', user));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          if (data.password === pass) {
+            // Login success: set login flag
+            localStorage.setItem('isLoggedIn', 'true');
+            localStorage.setItem('username', user);
+            errorDiv.textContent = '';
+            window.location.href = 'index.html';
+          } else {
+            errorDiv.textContent = 'Invalid username or password.';
+          }
+        } else {
+          errorDiv.textContent = 'Invalid username or password.';
+        }
+      } catch (err) {
+        errorDiv.textContent = 'Login error. Please try again.';
+        console.error(err);
+      }
+    });
+  </script>
+</body>
+</html>

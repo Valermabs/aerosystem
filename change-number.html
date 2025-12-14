@@ -1,0 +1,474 @@
+<!--
+  This file is an exact copy of index.html except for the main content area.
+  All layout, styles, and scripts are preserved for a consistent dashboard experience.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Change Number - Greenhouse Real-Time Sensor Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/justgage@1.4.0/justgage.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/justgage@1.4.0/justgage.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+      padding: 0;
+    }
+    .dashboard-root {
+      height: 100vh;
+      display: flex;
+      background: #f3f4f6;
+    }
+    .sidebar {
+      width: 250px;
+      background: #fff;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+      transition: width 0.3s ease, left 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      z-index: 1002;
+      position: fixed;
+      left: -260px;
+      top: 0;
+      height: 100vh;
+      visibility: hidden;
+      opacity: 0;
+    }
+    .sidebar.active {
+      left: 0;
+      visibility: visible;
+      opacity: 1;
+      transition: left 0.3s ease, opacity 0.3s ease;
+    }
+    .sidebar.collapsed {
+      width: 70px;
+    }
+    .sidebar-header {
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid #e5e7eb;
+      font-weight: bold;
+      font-size: 1.2em;
+      letter-spacing: 1px;
+    }
+    .sidebar-menu {
+      padding: 10px;
+    }
+    .sidebar-menu a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      color: #111827;
+      text-decoration: none;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      font-size: 1em;
+      transition: background 0.2s;
+    }
+    .sidebar-menu a:hover {
+      background: #f3f4f6;
+    }
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      margin-left: 0;
+      transition: margin-left 0.3s ease;
+    }
+    @media (min-width: 701px) {
+      .sidebar.active ~ .main {
+        margin-left: 250px;
+      }
+    }
+    .topbar {
+      height: 60px;
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 1;
+    }
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    .icon-btn {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 6px;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+    .icon-btn:hover {
+      background: #f3f4f6;
+    }
+    .logout-btn {
+      padding: 6px 12px;
+      border: 1px solid #d1d5db;
+      background: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1em;
+      transition: background 0.2s;
+    }
+    .logout-btn:hover {
+      background: #f3f4f6;
+    }
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      min-width: 0;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px #0001;
+      padding: 30px;
+    }
+    .notification-bell {
+      position: relative;
+      font-size: 2em;
+      cursor: pointer;
+      z-index: 1000;
+      background: none;
+      border: none;
+      margin-right: 8px;
+    }
+    .notification-badge {
+      position: absolute;
+      top: -6px;
+      right: -8px;
+      background: #e53935;
+      color: #fff;
+      border-radius: 50%;
+      padding: 2px 7px;
+      font-size: 0.7em;
+      font-weight: bold;
+      display: none;
+    }
+    .notification-dropdown {
+      display: none;
+      position: absolute;
+      top: 40px;
+      right: 0;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px #0002;
+      min-width: 260px;
+      max-width: 350px;
+      max-height: 350px;
+      overflow-y: auto;
+      z-index: 1001;
+    }
+    .notification-dropdown.active {
+      display: block;
+    }
+    .notification-dropdown h4 {
+      margin: 0;
+      padding: 10px 16px;
+      border-bottom: 1px solid #eee;
+      font-size: 1em;
+      background: #f8fafc;
+    }
+    .notification-dropdown ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .notification-dropdown li {
+      padding: 10px 16px;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 0.98em;
+      color: #333;
+    }
+    .notification-dropdown li:last-child {
+      border-bottom: none;
+    }
+    .notification-dropdown .empty {
+      color: #888;
+      text-align: center;
+      padding: 18px 0;
+    }
+    @media (max-width: 1200px) {
+      .main-content { padding: 10px; }
+      .chart-container {
+        grid-template-columns: 1fr;
+        grid-gap: 18px;
+      }
+    }
+    @media (max-width: 900px) {
+      .sidebar { width: 60px; }
+      .sidebar.collapsed { width: 40px; }
+      .main-content { padding: 6px; }
+      .chart-container {
+        grid-template-columns: 1fr;
+        grid-gap: 12px;
+      }
+      .topbar { flex-direction: column; height: auto; padding: 8px; }
+      .topbar-actions { margin-top: 8px; }
+    }
+    @media (max-width: 700px) {
+      .dashboard-root { flex-direction: column; }
+      .sidebar {
+        width: 80vw;
+        max-width: 320px;
+        height: 100vh;
+        flex-direction: column;
+        position: fixed;
+        left: -85vw;
+        top: 0;
+        box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+        z-index: 1002;
+      }
+      .sidebar.active {
+        left: 0;
+      }
+      .sidebar-header { display: flex; }
+      .sidebar-menu { display: flex; flex-direction: column; padding: 10px; width: 100%; }
+      .sidebar-menu a { flex: none; justify-content: flex-start; margin-bottom: 6px; padding: 12px; font-size: 1em; }
+      .main { width: 100vw; margin-left: 0; }
+      .main-content { padding: 4px; }
+      .chart-container > div { max-width: 100%; }
+      .topbar { flex-direction: column; height: auto; padding: 6px; }
+      .topbar-actions { margin-top: 8px; }
+    }
+    @media (max-width: 500px) {
+      .main-content { padding: 2px; }
+      .chart-container > div { padding: 6px 2px 2px 2px; }
+      .chart-container h3 { font-size: 1em; }
+      .sidebar-menu a { font-size: 0.85em; }
+      .notification-bell { font-size: 1.3em; }
+      .logout-btn { font-size: 0.9em; padding: 4px 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-root">
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header" id="sidebarHeader">Greenhouse Real-Time Sensor Dashboard</div>
+      <div class="sidebar-menu">
+        <a href="#" id="menuHome">🏠 <span class="menu-label">Home</span></a>
+        <a href="#" id="menuChangeNumber">📱 <span class="menu-label">Change Number</span></a>
+        <a href="#" id="menuExport" style="display:none">&#128190; <span class="menu-label">Export to Excel</span></a>
+      </div>
+    </div>
+    <!-- Main -->
+    <div class="main" id="mainContent">
+      <div class="topbar">
+        <button class="icon-btn" id="sidebarToggle" title="Toggle sidebar">☰</button>
+        <div class="topbar-actions">
+          <button class="notification-bell icon-btn" id="notificationBell" title="Show alerts">
+            <span id="bellIcon">🔔</span>
+            <span class="notification-badge" id="notificationBadge">0</span>
+          </button>
+          <button class="logout-btn" id="logoutBtn">Logout</button>
+        </div>
+        <div class="notification-dropdown" id="notificationDropdown">
+          <h4>Alerts</h4>
+          <ul id="notificationList">
+            <li class="empty">No alerts yet.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="main-content">
+        <div class="container">
+          <h2 style="text-align:center;">Change Notification Number</h2>
+          <form id="changeForm" autocomplete="off" style="max-width:400px;margin:0 auto;">
+            <label for="newNumber">New Number</label>
+            <input type="text" id="newNumber" name="newNumber" required placeholder="e.g. +639171234567" style="width:100%;padding:8px;margin:10px 0 20px 0;">
+            <button type="submit" style="width:100%;padding:10px 0;">Save</button>
+            <div class="change-success" id="changeSuccess" style="margin-top:10px;color:green;"></div>
+            <div class="change-error" id="changeError" style="margin-top:10px;color:red;"></div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/mqtt/dist/mqtt.min.js"></script>
+  <script>
+  // Redirect to login if not logged in
+  if (localStorage.getItem('isLoggedIn') !== 'true') {
+    window.location.href = 'login.html';
+  }
+  // Prevent back navigation after logout
+  window.addEventListener('pageshow', function(event) {
+    if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+      if (localStorage.getItem('isLoggedIn') !== 'true') {
+        window.location.href = 'login.html';
+      }
+    }
+  });
+  // Logout function
+  function logout() {
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('username');
+    window.location.replace('login.html');
+  }
+  // Notification logic (copied from index.html)
+  let lastAlertState = { ph: '', water: '', temp: '', hum: '' };
+  let alertMessages = [];
+  function addAlert(msg) {
+    alertMessages.unshift({ msg, time: new Date() });
+    updateNotificationBell();
+  }
+  function updateNotificationBell() {
+    const badge = document.getElementById('notificationBadge');
+    badge.textContent = alertMessages.length;
+    badge.style.display = alertMessages.length > 0 ? '' : 'none';
+    const list = document.getElementById('notificationList');
+    list.innerHTML = '';
+    if (alertMessages.length === 0) {
+      list.innerHTML = '<li class="empty">No alerts yet.</li>';
+    } else {
+      alertMessages.forEach(a => {
+        const li = document.createElement('li');
+        li.textContent = `[${a.time.toLocaleTimeString()}] ${a.msg}`;
+        list.appendChild(li);
+      });
+    }
+  }
+  function markNotificationsRead() {
+    const badge = document.getElementById('notificationBadge');
+    badge.style.display = 'none';
+  }
+  function notify(msg) {
+    addAlert(msg);
+    if (window.Notification && Notification.permission === 'granted') {
+      new Notification(msg);
+    } else if (window.Notification && Notification.permission !== 'denied') {
+      Notification.requestPermission().then(p => { if (p === 'granted') new Notification(msg); });
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    const bell = document.getElementById('notificationBell');
+    const dropdown = document.getElementById('notificationDropdown');
+    bell.addEventListener('click', function() {
+      dropdown.classList.toggle('active');
+      if (dropdown.classList.contains('active')) {
+        updateNotificationBell();
+        markNotificationsRead();
+      }
+    });
+    document.addEventListener('click', function(e) {
+      if (!bell.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.classList.remove('active');
+      }
+    });
+  });
+  // Sidebar show/hide logic (copied from index.html)
+  const sidebar = document.getElementById('sidebar');
+  const sidebarHeader = document.getElementById('sidebarHeader');
+  const sidebarToggle = document.getElementById('sidebarToggle');
+  const mainContent = document.getElementById('mainContent');
+  const menuLabels = document.querySelectorAll('.menu-label');
+  let sidebarVisible = false;
+  function setSidebarVisible(visible) {
+    sidebarVisible = visible;
+    if (visible) {
+      sidebar.classList.add('active');
+      if (window.innerWidth > 700) {
+        mainContent.style.marginLeft = '250px';
+      }
+    } else {
+      sidebar.classList.remove('active');
+      mainContent.style.marginLeft = '0';
+    }
+    sidebarHeader.textContent = 'Greenhouse Real-Time Sensor Dashboard';
+  }
+  setSidebarVisible(false);
+  sidebarToggle.addEventListener('click', function(e) {
+    e.stopPropagation();
+    setSidebarVisible(!sidebarVisible);
+  });
+  document.addEventListener('click', function(e) {
+    if (sidebarVisible && !sidebar.contains(e.target) && !sidebarToggle.contains(e.target)) {
+      setSidebarVisible(false);
+    }
+  });
+  window.addEventListener('resize', function() {
+    if (window.innerWidth > 700 && sidebarVisible) {
+      mainContent.style.marginLeft = '250px';
+    } else {
+      mainContent.style.marginLeft = '0';
+    }
+  });
+  // Menu navigation
+  document.getElementById('menuHome').addEventListener('click', function(e) {
+    e.preventDefault();
+    window.location.href = 'index.html';
+  });
+  document.getElementById('menuChangeNumber').addEventListener('click', function(e) {
+    e.preventDefault();
+    window.location.href = 'change-number.html';
+  });
+  // Logout function (single, correct version)
+  function logout() {
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('username');
+    window.location.replace('login.html');
+  }
+  document.getElementById('logoutBtn').addEventListener('click', function(e) {
+    e.preventDefault();
+    logout();
+  });
+  // Change number form logic
+  // MQTT setup for sending new number
+  const mqttBroker = 'wss://mqtt.flespi.io:443';
+  const mqttTopicSetNumber = 'ttgo/set_number';
+  const mqttToken = 'Y0LUpdI1XCaPuYx4yqxetZ3767TbxsutQ4RgB6xBWhFKhVdL52g5jPvkzlCi6wUV';
+  const mqttClient = mqtt.connect(mqttBroker, {
+    username: '',
+    password: mqttToken
+  });
+
+  document.getElementById('changeForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const newNumber = document.getElementById('newNumber').value.trim();
+    const successDiv = document.getElementById('changeSuccess');
+    const errorDiv = document.getElementById('changeError');
+    successDiv.textContent = '';
+    errorDiv.textContent = '';
+    // Accepts only +639XXXXXXXXX
+    const regex = /^\+639\d{9}$/;
+    if (regex.test(newNumber)) {
+      localStorage.setItem('notificationNumber', newNumber);
+      // Publish to MQTT topic to update number on device
+      if (mqttClient.connected) {
+        mqttClient.publish(mqttTopicSetNumber, newNumber, {}, function(err) {
+          if (!err) {
+            successDiv.textContent = 'Number changed and sent to device!';
+          } else {
+            successDiv.textContent = 'Number changed locally, but failed to send to device.';
+          }
+        });
+      } else {
+        successDiv.textContent = 'Number changed locally, but MQTT not connected.';
+      }
+    } else {
+      errorDiv.textContent = 'Please enter a valid Philippine mobile number in +63 format (e.g. +639171234567).';
+    }
+  });
+  </script>
+</body>
+</html>
