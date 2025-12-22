@@ -857,12 +857,16 @@ function exportToExcel() {
         return;
       }
       // Map fields to readable names and round to 2 decimals
+      function to2Decimals(val) {
+        const n = Number(val);
+        return (typeof n === 'number' && !isNaN(n)) ? Math.round(n * 100) / 100 : val;
+      }
       const logs = data.feeds.map(f => ({
         time: f.created_at ? new Date(f.created_at).toLocaleString() : '',
-        waterLevel: f.field1 !== undefined && f.field1 !== null && !isNaN(Number(f.field1)) ? parseFloat(Number(f.field1).toFixed(2)) : f.field1,
-        temperature: f.field2 !== undefined && f.field2 !== null && !isNaN(Number(f.field2)) ? parseFloat(Number(f.field2).toFixed(2)) : f.field2,
-        humidity: f.field3 !== undefined && f.field3 !== null && !isNaN(Number(f.field3)) ? parseFloat(Number(f.field3).toFixed(2)) : f.field3,
-        ph: f.field4 !== undefined && f.field4 !== null && !isNaN(Number(f.field4)) ? parseFloat(Number(f.field4).toFixed(2)) : f.field4
+        waterLevel: to2Decimals(f.field1),
+        temperature: to2Decimals(f.field2),
+        humidity: to2Decimals(f.field3),
+        ph: to2Decimals(f.field4)
       }));
       const ws = XLSX.utils.json_to_sheet(logs);
       const wb = XLSX.utils.book_new();
