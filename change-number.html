@@ -1,4 +1,4 @@
-<!--
+<!--s
   This file is an exact copy of index.html except for the main content area.
   All layout, styles, and scripts are preserved for a consistent dashboard experience.
 -->
@@ -294,6 +294,9 @@
       <div class="main-content">
         <div class="container">
           <h2 style="text-align:center;">Change Notification Number</h2>
+          <div id="currentNumberBox" style="margin-bottom:18px;text-align:center;font-size:1.1em;">
+            Current Number: <span id="currentNumber">Loading...</span>
+          </div>
           <form id="changeForm" autocomplete="off" style="max-width:400px;margin:0 auto;">
             <label for="newNumber">New Number</label>
             <input type="text" id="newNumber" name="newNumber" required placeholder="e.g. +639171234567" style="width:100%;padding:8px;margin:10px 0 20px 0;">
@@ -433,14 +436,38 @@
     logout();
   });
   // Change number form logic
-  // MQTT setup for sending new number
+  // MQTT setup for sending new number and receiving current number
   const mqttBroker = 'wss://mqtt.flespi.io:443';
   const mqttTopicSetNumber = 'ttgo/set_number';
+  const mqttTopicCurrentNumber = 'ttgo/current_number';
   const mqttToken = 'Y0LUpdI1XCaPuYx4yqxetZ3767TbxsutQ4RgB6xBWhFKhVdL52g5jPvkzlCi6wUV';
   const mqttClient = mqtt.connect(mqttBroker, {
     username: '',
     password: mqttToken
   });
+
+  // Show current number from device (via MQTT)
+  const currentNumberSpan = document.getElementById('currentNumber');
+  mqttClient.on('connect', function() {
+    mqttClient.subscribe(mqttTopicCurrentNumber, function(err) {
+      if (!err) {
+        // Request current number from device (optional: publish to a topic to trigger ESP32 to send it)
+        // mqttClient.publish('ttgo/request_current_number', 'get');
+      }
+    });
+  });
+  mqttClient.on('message', function(topic, message) {
+    if (topic === mqttTopicCurrentNumber) {
+      const num = message.toString();
+      currentNumberSpan.textContent = num || 'Not set';
+      // Optionally, show a success message if this was after a change
+      const successDiv = document.getElementById('changeSuccess');
+      if (successDiv && successDiv.textContent.includes('sent to device')) {
+        successDiv.textContent = 'Number changed and confirmed by device!';
+      }
+    }
+  });
+  // On page load, show 'Loading...' until a value is received
 
   document.getElementById('changeForm').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -458,6 +485,7 @@
         mqttClient.publish(mqttTopicSetNumber, newNumber, {}, function(err) {
           if (!err) {
             successDiv.textContent = 'Number changed and sent to device!';
+            // Optionally, wait for confirmation from device via mqttTopicCurrentNumber
           } else {
             successDiv.textContent = 'Number changed locally, but failed to send to device.';
           }

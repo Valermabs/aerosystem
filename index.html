@@ -306,6 +306,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Firebase App (core) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <!-- Firestore -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <script>
+    // TODO: Replace with your Firebase config
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      // ...other config
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -795,21 +810,68 @@ window.sensorReadings = window.sensorReadings || [];
 // Example usage:
 // window.sensorReadings.push({ time: Date.now(), temp: 25, humidity: 60 });
 
-// Export sensor readings to Excel file
-function exportToExcel() {
-  let sensorReadings = window.sensorReadings;
-  if (!Array.isArray(sensorReadings) || !sensorReadings.length) {
-    alert('No sensor data to export!');
-    return;
+// Add date picker to UI if not present
+if (!document.getElementById('exportDate')) {
+  const exportMenu = document.getElementById('menuExport');
+  if (exportMenu) {
+    const dateInput = document.createElement('input');
+    dateInput.type = 'date';
+    dateInput.id = 'exportDate';
+    dateInput.style.marginLeft = '10px';
+    dateInput.style.marginRight = '10px';
+    dateInput.valueAsDate = new Date();
+    exportMenu.parentNode.insertBefore(dateInput, exportMenu.nextSibling);
   }
-  const ws = XLSX.utils.json_to_sheet(sensorReadings);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Sensor Readings");
-  // Add only date to filename to avoid duplication
-  const now = new Date();
+}
+
+// Export sensor readings to Excel file for selected date
+function exportToExcel() {
+  // ThingSpeak channel and API info
+  const channelId = 3205196;
+  const readApiKey = '8R9O03YQVE8GM9GQ';
+
+  // Get selected date from date picker
+  const dateInput = document.getElementById('exportDate');
+  let selectedDate = new Date();
+  if (dateInput && dateInput.value) {
+    selectedDate = new Date(dateInput.value + 'T00:00:00');
+  }
   const pad = n => n.toString().padStart(2, '0');
-  const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-  XLSX.writeFile(wb, `sensor_readings_${dateStr}.xlsx`);
+  const start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), 6, 0, 0); // 6:00 AM selected day
+  const end = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate() + 1, 0, 0, 0); // 12:00 AM next day
+  const dateStr = `${selectedDate.getFullYear()}-${pad(selectedDate.getMonth()+1)}-${pad(selectedDate.getDate())}`;
+
+  // Format ThingSpeak API date strings (YYYY-MM-DD HH:MM:SS)
+  function formatTS(d) {
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+
+  // Build ThingSpeak API URL
+  const url = `https://api.thingspeak.com/channels/${channelId}/feeds.json?api_key=${readApiKey}&start=${encodeURIComponent(formatTS(start))}&end=${encodeURIComponent(formatTS(end))}&timezone=Asia/Manila&results=8000`;
+
+  fetch(url)
+    .then(res => res.json())
+    .then(data => {
+      if (!data.feeds || !data.feeds.length) {
+        alert('No sensor data in ThingSpeak for this period!');
+        return;
+      }
+      // Map fields to readable names (adjust as needed)
+      const logs = data.feeds.map(f => ({
+        time: f.created_at ? new Date(f.created_at).toLocaleString() : '',
+        waterLevel: f.field1,
+        temperature: f.field2,
+        humidity: f.field3,
+        ph: f.field4
+      }));
+      const ws = XLSX.utils.json_to_sheet(logs);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Sensor Readings");
+      XLSX.writeFile(wb, `sensor_readings_${dateStr}_6AM-12AM.xlsx`);
+    })
+    .catch(err => {
+      alert('Error fetching data from ThingSpeak: ' + err);
+    });
 }
 </script>
 <script>
