@@ -856,13 +856,13 @@ function exportToExcel() {
         alert('No sensor data in ThingSpeak for this period!');
         return;
       }
-      // Map fields to readable names (adjust as needed)
+      // Map fields to readable names and round to 2 decimals
       const logs = data.feeds.map(f => ({
         time: f.created_at ? new Date(f.created_at).toLocaleString() : '',
-        waterLevel: f.field1,
-        temperature: f.field2,
-        humidity: f.field3,
-        ph: f.field4
+        waterLevel: f.field1 !== undefined && f.field1 !== null && !isNaN(Number(f.field1)) ? Number(f.field1).toFixed(2) : f.field1,
+        temperature: f.field2 !== undefined && f.field2 !== null && !isNaN(Number(f.field2)) ? Number(f.field2).toFixed(2) : f.field2,
+        humidity: f.field3 !== undefined && f.field3 !== null && !isNaN(Number(f.field3)) ? Number(f.field3).toFixed(2) : f.field3,
+        ph: f.field4 !== undefined && f.field4 !== null && !isNaN(Number(f.field4)) ? Number(f.field4).toFixed(2) : f.field4
       }));
       const ws = XLSX.utils.json_to_sheet(logs);
       const wb = XLSX.utils.book_new();
