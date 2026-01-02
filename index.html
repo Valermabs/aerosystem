@@ -1,3 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Firebase App (core) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <!-- Firestore -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <script>
+    // TODO: Replace with your Firebase config
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      // ...other config
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESP32 Sensor Dashboard</title>
+  <!-- Removed corrupted updateChart function -->
+  <script src="https://cdn.jsdelivr.net/npm/mqtt/dist/mqtt.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/raphael@2.3.0/raphael.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/justgage@1.3.5/justgage.min.js"></script>
+  <!-- SheetJS library for Excel export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
     body {
       font-family: Arial, Helvetica, sans-serif;
@@ -246,19 +274,24 @@
     }
   </style>
   <script>
-  // Notification logic
+  // Notification logic - Initialize before DOM loads
   let lastAlertState = { ph: '', water: '', temp: '', hum: '' };
   let alertMessages = [];
+  
   function addAlert(msg) {
     alertMessages.unshift({ msg, time: new Date() });
     updateNotificationBell();
   }
+  
   function updateNotificationBell() {
     const badge = document.getElementById('notificationBadge');
-    badge.textContent = alertMessages.length;
-    badge.style.display = alertMessages.length > 0 ? '' : 'none';
     const list = document.getElementById('notificationList');
+    if (!badge || !list) return; // Safety check
+    
+    badge.textContent = alertMessages.length;
+    badge.style.display = alertMessages.length > 0 ? 'block' : 'none';
     list.innerHTML = '';
+    
     if (alertMessages.length === 0) {
       list.innerHTML = '<li class="empty">No alerts yet.</li>';
     } else {
@@ -271,68 +304,39 @@
   }
 
   function markNotificationsRead() {
-    // Mark all as read: clear badge
     const badge = document.getElementById('notificationBadge');
-    badge.style.display = 'none';
-    // Optionally clear alertMessages if you want to clear the list after reading:
-    // alertMessages = [];
-    // updateNotificationBell();
-  }
-  function notify(msg) {
-    addAlert(msg);
-    if (window.Notification && Notification.permission === 'granted') {
-      new Notification(msg);
-    } else if (window.Notification && Notification.permission !== 'denied') {
-      Notification.requestPermission().then(p => { if (p === 'granted') new Notification(msg); });
+    if (badge) {
+      badge.style.display = 'none';
     }
   }
-  document.addEventListener('DOMContentLoaded', function() {
-    const bell = document.getElementById('notificationBell');
-    const dropdown = document.getElementById('notificationDropdown');
-    bell.addEventListener('click', function() {
-      dropdown.classList.toggle('active');
-      if (dropdown.classList.contains('active')) {
-        updateNotificationBell();
-        markNotificationsRead();
+  
+  function notify(msg) {
+    console.log('Notification triggered:', msg);
+    addAlert(msg);
+    
+    // Request notification permission and show notification
+    if (window.Notification) {
+      if (Notification.permission === 'granted') {
+        new Notification('ESP32 Sensor Alert', { body: msg });
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') {
+            new Notification('ESP32 Sensor Alert', { body: msg });
+          }
+        });
       }
-    });
-    document.addEventListener('click', function(e) {
-      if (!bell.contains(e.target) && !dropdown.contains(e.target)) {
-        dropdown.classList.remove('active');
-      }
-    });
+    }
+  }
+  
+  // Request notification permission on page load
+  window.addEventListener('load', function() {
+    if (window.Notification && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
   });
   </script>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <!-- Firebase App (core) -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-    <!-- Firestore -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-    <script>
-    // TODO: Replace with your Firebase config
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-      projectId: "YOUR_PROJECT_ID",
-      // ...other config
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    </script>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-
-  <title>ESP32 Sensor Dashboard</title>
-  <!-- Removed corrupted updateChart function -->
-  <script src="https://cdn.jsdelivr.net/npm/mqtt/dist/mqtt.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/raphael@2.3.0/raphael.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/justgage@1.3.5/justgage.min.js"></script>
-  <!-- SheetJS library for Excel export -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
   <style>
     body { font-family: Arial, sans-serif; background: #f4f6fa; margin: 0; padding: 0; }
     .container { max-width: 900px; margin: 30px auto; background: #fff; border-radius: 10px; box-shadow: 0 2px 8px #0001; padding: 30px; }
@@ -484,26 +488,27 @@
     }
   });
 
-  // Notification dropdown positioning (relative to bell)
+  // Notification bell click handler
   const notificationBell = document.getElementById('notificationBell');
   const notificationDropdown = document.getElementById('notificationDropdown');
-  notificationBell.addEventListener('click', function(e) {
-    e.stopPropagation();
-    notificationDropdown.classList.toggle('active');
-    if (notificationDropdown.classList.contains('active')) {
-      updateNotificationBell();
-      markNotificationsRead();
-      // Position dropdown below bell
-      const rect = notificationBell.getBoundingClientRect();
-      notificationDropdown.style.top = (rect.bottom + 8) + 'px';
-      notificationDropdown.style.right = (window.innerWidth - rect.right) + 'px';
-    }
-  });
-  document.addEventListener('click', function(e) {
-    if (!notificationBell.contains(e.target) && !notificationDropdown.contains(e.target)) {
-      notificationDropdown.classList.remove('active');
-    }
-  });
+  
+  if (notificationBell && notificationDropdown) {
+    notificationBell.addEventListener('click', function(e) {
+      e.stopPropagation();
+      notificationDropdown.classList.toggle('active');
+      if (notificationDropdown.classList.contains('active')) {
+        updateNotificationBell();
+        markNotificationsRead();
+      }
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+      if (!notificationBell.contains(e.target) && !notificationDropdown.contains(e.target)) {
+        notificationDropdown.classList.remove('active');
+      }
+    });
+  }
     function logout() {
       // Optionally clear session/local storage here if needed
       window.location.href = 'login.html';
